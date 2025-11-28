@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  avatar        String?
+  provider      String?
+  settings      Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  transactions  Transaction[]
+  incomes       Income[]
+  subscriptions Subscription[]
+  alerts        Alert[]
+  goals         Goal[]
+  conversations Conversation[]
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String   // 'expense' | 'income'
+  title        String
+  amount       Float
+  category     String
+  paymentMode  String?
+  notes        String?
+  date         DateTime
+  recurringId  String?
+  remoteId     String?
+  synced       Boolean  @default(false)
+  isRegret     Boolean  @default(false)
+  location     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([date])
+  @@index([category])
+}
+
+model Income {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  amount      Float
+  category    String
+  frequency   String   // 'monthly' | 'yearly' | 'weekly' | 'one-time'
+  date        DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Subscription {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  amount       Float
+  frequency    String   // 'monthly' | 'yearly' | 'weekly'
+  nextDate     DateTime
+  category     String
+  autoDetected Boolean @default(false)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([nextDate])
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // 'overspending' | 'low_balance' | 'recurring_due' | 'spike' | 'fraud'
+  severity  String   // 'low' | 'medium' | 'high'
+  message   String
+  payload   Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  targetAmt   Float
+  savedAmt    Float    @default(0)
+  targetDate  DateTime
+  status      String   @default("active") // 'active' | 'completed' | 'paused'
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Json     // Array of {role, content, timestamp}
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model PriceHistory {
+  id          String   @id @default(cuid())
+  productName String
+  price       Float
+  url         String?
+  recordedAt  DateTime @default(now())
+
+  @@index([productName])
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  type        String        // 'shared_pot' | 'split_bills' | 'savings_goal'
+  totalAmount Float         @default(0)
+  members     GroupMember[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // 'admin' | 'member'
+  share     Float    @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, userId])
+}
